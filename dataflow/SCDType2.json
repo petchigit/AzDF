@@ -1,12 +1,45 @@
 {
 	"name": "SCDType2",
 	"properties": {
+		"folder": {
+			"name": "Demos"
+		},
 		"type": "MappingDataFlow",
 		"typeProperties": {
-			"sources": [],
-			"sinks": [],
-			"transformations": [],
-			"script": "\n"
+			"sources": [
+				{
+					"name": "SQLProducts"
+				},
+				{
+					"name": "DimProd"
+				}
+			],
+			"sinks": [
+				{
+					"name": "loadADW"
+				}
+			],
+			"transformations": [
+				{
+					"name": "LookupKeys"
+				},
+				{
+					"name": "ColumnSelection"
+				},
+				{
+					"name": "NewRowOrExistingMember"
+				},
+				{
+					"name": "SurrogateKey1"
+				},
+				{
+					"name": "SetAttributes"
+				},
+				{
+					"name": "Filter1"
+				}
+			],
+			"script": "\n\nsource(output(\n\t\tProductID as integer,\n\t\tName as string,\n\t\tProductNumber as string,\n\t\tColor as string,\n\t\tStandardCost as decimal(19,4),\n\t\tListPrice as decimal(19,4),\n\t\tSize as string,\n\t\tWeight as decimal(8,2),\n\t\tProductCategoryID as integer,\n\t\tProductModelID as integer,\n\t\tSellStartDate as timestamp,\n\t\tSellEndDate as timestamp,\n\t\tDiscontinuedDate as timestamp,\n\t\tThumbnailPhotoFileName as string,\n\t\trowguid as string,\n\t\tModifiedDate as timestamp\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false) ~> SQLProducts\nsource(output(\n\t\tProductKey as integer,\n\t\tProductAlternateKey as string,\n\t\tProductSubcategoryKey as integer,\n\t\tWeightUnitMeasureCode as string,\n\t\tSizeUnitMeasureCode as string,\n\t\tEnglishProductName as string,\n\t\tSpanishProductName as string,\n\t\tFrenchProductName as string,\n\t\tStandardCost as decimal(19,4),\n\t\tFinishedGoodsFlag as boolean,\n\t\tColor as string,\n\t\tSafetyStockLevel as integer,\n\t\tReorderPoint as integer,\n\t\tListPrice as decimal(19,4),\n\t\tSize as string,\n\t\tSizeRange as string,\n\t\tWeight as double,\n\t\tDaysToManufacture as integer,\n\t\tProductLine as string,\n\t\tDealerPrice as decimal(19,4),\n\t\tClass as string,\n\t\tStyle as string,\n\t\tModelName as string,\n\t\tEnglishDescription as string,\n\t\tFrenchDescription as string,\n\t\tChineseDescription as string,\n\t\tArabicDescription as string,\n\t\tHebrewDescription as string,\n\t\tThaiDescription as string,\n\t\tGermanDescription as string,\n\t\tJapaneseDescription as string,\n\t\tTurkishDescription as string,\n\t\tStartDate as timestamp,\n\t\tEndDate as timestamp,\n\t\tStatus as string\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false) ~> DimProd\nFilter1, DimProd lookup(ProductID == ProductKey,\n\tbroadcast: 'none')~> LookupKeys\nLookupKeys select(mapColumn(\n\t\tProductID,\n\t\tName,\n\t\tProductNumber,\n\t\tColor = SQLProducts@Color,\n\t\tStandardCost = SQLProducts@StandardCost,\n\t\tListPrice = SQLProducts@ListPrice,\n\t\tSize = SQLProducts@Size,\n\t\tWeight = SQLProducts@Weight,\n\t\tProductKey,\n\t\tProductAlternateKey,\n\t\tProductSubcategoryKey,\n\t\tWeightUnitMeasureCode,\n\t\tSizeUnitMeasureCode,\n\t\tEnglishProductName,\n\t\tSafetyStockLevel,\n\t\tReorderPoint,\n\t\tSizeRange,\n\t\tDaysToManufacture,\n\t\tProductLine,\n\t\tDealerPrice,\n\t\tClass,\n\t\tStyle,\n\t\tModelName,\n\t\tEnglishDescription,\n\t\tStartDate,\n\t\tEndDate,\n\t\tStatus\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> ColumnSelection\nColumnSelection split(isNull(ProductAlternateKey),\n\tdisjoint: false) ~> NewRowOrExistingMember@(NewRow, ExistingMember)\nNewRowOrExistingMember@NewRow keyGenerate(output(surrogatekey as long),\n\tstartAt: 1L) ~> SurrogateKey1\nSurrogateKey1 derive(surrogatekey = crc32(surrogatekey)) ~> SetAttributes\nSQLProducts filter(regexMatch(Name,'^s')) ~> Filter1\nSetAttributes sink(mapColumn(\n\t\tProductKey,\n\t\tProductAlternateKey,\n\t\tProductSubcategoryKey,\n\t\tWeightUnitMeasureCode,\n\t\tSizeUnitMeasureCode,\n\t\tEnglishProductName,\n\t\tStandardCost,\n\t\tColor,\n\t\tSafetyStockLevel,\n\t\tReorderPoint,\n\t\tListPrice,\n\t\tSize,\n\t\tSizeRange,\n\t\tWeight,\n\t\tDaysToManufacture,\n\t\tProductLine,\n\t\tDealerPrice,\n\t\tClass,\n\t\tStyle,\n\t\tModelName,\n\t\tEnglishDescription,\n\t\tStartDate,\n\t\tEndDate,\n\t\tStatus\n\t)) ~> loadADW"
 		}
 	}
 }
